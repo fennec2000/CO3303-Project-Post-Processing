@@ -20,7 +20,10 @@ using namespace std;
 #include "Messenger.h"
 #include "CParseLevel.h"
 #include "PostProcess.h"
+
 #include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx10.h"
 
 namespace gen
 {
@@ -32,7 +35,7 @@ namespace gen
 // Enumeration of different post-processes
 enum PostProcesses
 {
-	Copy, Tint, GreyNoise, Burn, Distort, Spiral,  
+	Copy, Tint, Tint2, GreyNoise, Burn, Distort, Spiral, Water, Retro,  
 	NumPostProcesses
 };
 
@@ -44,7 +47,7 @@ PostProcesses CurrentPostProcess = Tint;
 ID3D10Effect* PPEffect;
 
 // Technique name for each post-process
-const string PPTechniqueNames[NumPostProcesses] = {	"PPCopy", "PPTint", "PPGreyNoise", "PPBurn", "PPDistort", "PPSpiral", };
+const string PPTechniqueNames[NumPostProcesses] = {	"PPCopy", "PPTint", "PPTint2", "PPGreyNoise", "PPBurn", "PPDistort", "PPSpiral", "PPWater", "PPRetro" };
 
 // Technique pointers for each post-process
 ID3D10EffectTechnique* PPTechniques[NumPostProcesses];
@@ -67,11 +70,21 @@ ID3D10EffectShaderResourceVariable* PostProcessMapVar = NULL; // Single shader v
 
 // Other variables for individual post-processes
 ID3D10EffectVectorVariable* TintColourVar = NULL;
+ID3D10EffectVectorVariable* TintColour2Var = NULL;
 ID3D10EffectVectorVariable* NoiseScaleVar = NULL;
 ID3D10EffectVectorVariable* NoiseOffsetVar = NULL;
 ID3D10EffectScalarVariable* DistortLevelVar = NULL;
 ID3D10EffectScalarVariable* BurnLevelVar = NULL;
 ID3D10EffectScalarVariable* WiggleVar = NULL;
+ID3D10EffectScalarVariable* BlurLevelVar = NULL;
+
+// retro settings
+ID3D10EffectScalarVariable* PixelationVar = NULL;
+ID3D10EffectScalarVariable* ColourPalletVar = NULL;
+
+// Dimensions of the viewport
+ID3D10EffectScalarVariable* ViewportWidthVar = NULL;
+ID3D10EffectScalarVariable* ViewportHeightVar = NULL;
 
 
 //*****************************************************************************
@@ -88,7 +101,14 @@ float CameraMoveSpeed = 80.0f;
 // Amount of time to pass before calculating new average update time
 const float UpdateTimePeriod = 0.25f;
 
+// motion blue
+bool motionBlurEnabled = false;
+float motionBlurAmount = 0.2f;
 
+// Demo state
+bool show_demo_window = true;
+bool show_another_window = false;
+ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 //-----------------------------------------------------------------------------
 // Global system variables
@@ -257,11 +277,21 @@ bool PostProcessSetup()
 	SceneTextureVar   = PPEffect->GetVariableByName( "SceneTexture" )->AsShaderResource();
 	PostProcessMapVar = PPEffect->GetVariableByName( "PostProcessMap" )->AsShaderResource();
 	TintColourVar   = PPEffect->GetVariableByName( "TintColour" )->AsVector();
+	TintColour2Var  = PPEffect->GetVariableByName( "TintColour2" )->AsVector();
 	NoiseScaleVar   = PPEffect->GetVariableByName( "NoiseScale" )->AsVector();
 	NoiseOffsetVar  = PPEffect->GetVariableByName( "NoiseOffset" )->AsVector();
 	DistortLevelVar = PPEffect->GetVariableByName( "DistortLevel" )->AsScalar();
 	BurnLevelVar    = PPEffect->GetVariableByName( "BurnLevel" )->AsScalar();
 	WiggleVar       = PPEffect->GetVariableByName( "Wiggle" )->AsScalar();
+	BlurLevelVar    = PPEffect->GetVariableByName( "BlurLevel" )->AsScalar();
+
+	// Retro
+	PixelationVar   = PPEffect->GetVariableByName( "Pixelation" )->AsScalar();
+	ColourPalletVar = PPEffect->GetVariableByName( "ColourPallet" )->AsScalar();
+
+	// Viewport dimensions
+	ViewportWidthVar = PPEffect->GetVariableByName("ViewportWidth")->AsScalar();
+	ViewportHeightVar = PPEffect->GetVariableByName("ViewportHeight")->AsScalar();
 
 	return true;
 }
@@ -297,6 +327,9 @@ void RenderScene( float updateTime )
 	vp.TopLeftY = 0;
 	g_pd3dDevice->RSSetViewports( 1, &vp );
 
+	ViewportWidthVar->SetFloat(static_cast<float>(BackBufferWidth));
+	ViewportHeightVar->SetFloat(static_cast<float>(BackBufferHeight));
+
 
 	//************************************************
 	// FIRST RENDER PASS - Render scene to texture
@@ -325,6 +358,18 @@ void RenderScene( float updateTime )
 
 
 	//************************************************
+	// PREPARE GOLBAL POST-PROCESS SETTINGS
+	
+	// motion blur
+	if (motionBlurEnabled)
+		BlurLevelVar->SetFloat(motionBlurAmount);
+	else
+		BlurLevelVar->SetFloat(1);	// this only use current screen turning motion blue off
+
+	//************************************************
+
+
+	//************************************************
 	// PREPARE INDIVIDUAL POST-PROCESS SETTINGS
 
 	switch (CurrentPostProcess)
@@ -334,6 +379,16 @@ void RenderScene( float updateTime )
 			// Set the colour used to tint the scene
 			D3DXCOLOR TintColour = D3DXCOLOR(1.0f, 0.0f, 0.0f, 0.5f); /*= ? ? FILTER - Make a nice colour*/
 			TintColourVar->SetRawValue( &TintColour, 0, 12 );
+		}
+		break;
+
+		case Tint2:
+		{
+			// Set the colour used to tint the scene
+			D3DXCOLOR TintColour = D3DXCOLOR(0.0f, 0.0f, 1.0f, 0.5f); /*= ? ? FILTER - Make a nice colour*/
+			D3DXCOLOR TintColour2 = D3DXCOLOR(1.0f, 1.0f, 0.0f, 0.5f); /*= ? ? FILTER - Make a nice colour*/
+			TintColourVar->SetRawValue(&TintColour, 0, 12);
+			TintColour2Var->SetRawValue(&TintColour2, 0, 12);
 		}
 		break;
 
@@ -391,6 +446,28 @@ void RenderScene( float updateTime )
 			Wiggle += WiggleSpeed * updateTime;
 			break;
 		}
+
+		case Water:
+		{
+			// Set the colour used to tint the scene
+			D3DXCOLOR TintColour = D3DXCOLOR(0.0f, 1.0f, 1.0f, 0.5f); /*= ? ? FILTER - Make a nice colour*/
+			TintColourVar->SetRawValue(&TintColour, 0, 12);
+
+			// wiggle
+			static float Wiggle = 0.0f;
+			const float WiggleSpeed = 1.0f;
+
+			// Set and increase the amount of spiral - use a tweaked cos wave to animate
+			WiggleVar->SetFloat(Wiggle);
+			Wiggle += WiggleSpeed * updateTime;
+			break;
+		}
+
+		case Retro:
+		{
+			PixelationVar->SetFloat(128.0f);
+			ColourPalletVar->SetFloat(4.0f);
+		}
 	}
 
 	//************************************************
@@ -419,12 +496,64 @@ void RenderScene( float updateTime )
 	
 
 	// Render UI elements last - don't want them post-processed
+	RenderImGui();
 	RenderSceneText( updateTime );
 
 	// Present the backbuffer contents to the display
 	SwapChain->Present( 0, 0 );
 }
 
+// render the imgui windows
+void RenderImGui()
+{
+	// Start the Dear ImGui frame
+	ImGui_ImplDX10_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	// test
+
+	// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+	if (show_demo_window)
+		ImGui::ShowDemoWindow(&show_demo_window);
+
+	// 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
+	{
+		static float f = 0.0f;
+		static int counter = 0;
+
+		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+		ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+		ImGui::Checkbox("Another Window", &show_another_window);
+
+		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+		ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+		if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			counter++;
+		ImGui::SameLine();
+		ImGui::Text("counter = %d", counter);
+
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::End();
+	}
+
+	// 3. Show another simple window.
+	if (show_another_window)
+	{
+		ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+		ImGui::Text("Hello from another window!");
+		if (ImGui::Button("Close Me"))
+			show_another_window = false;
+		ImGui::End();
+	}
+
+	// render windows
+	ImGui::Render();
+	ImGui_ImplDX10_RenderDrawData(ImGui::GetDrawData());
+}
 
 // Render a single text string at the given position in the given colour, may optionally centre it
 void RenderText( const string& text, int X, int Y, float r, float g, float b, bool centre = false )
@@ -445,15 +574,6 @@ void RenderText( const string& text, int X, int Y, float r, float g, float b, bo
 // Render on-screen text each frame
 void RenderSceneText( float updateTime )
 {
-	// Imgui
-	ImGui::Text("Hello, world %d", 123);
-	if (ImGui::Button("Save"))
-	{
-		// do stuff
-	}
-	float f = 1.0f;
-	ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-
 	// Accumulate update times to calculate the average over a given period
 	SumUpdateTimes += updateTime;
 	++NumUpdateTimes;
@@ -484,6 +604,9 @@ void RenderSceneText( float updateTime )
 	case Tint: 
 		outText << "Tint";
 		break;
+	case Tint2:
+		outText << "Tint 2 Colours";
+		break;
 	case GreyNoise: 
 		outText << "Grey Noise";
 		break;
@@ -495,6 +618,12 @@ void RenderSceneText( float updateTime )
 		break;
 	case Spiral: 
 		outText << "Spiral";
+		break;
+	case Water:
+		outText << "Underwater";
+		break;
+	case Retro:
+		outText << "Retro";
 		break;
 	}
 	RenderText( outText.str(),  0, 32,  1.0f, 1.0f, 1.0f );
@@ -515,12 +644,18 @@ void UpdateScene( float updateTime )
 	if (KeyHit( Key_F5 )) CameraMoveSpeed = 640.0f;
 
 	// Choose post-process
-	if (KeyHit( Key_1 )) CurrentPostProcess = Copy;
-	if (KeyHit( Key_2 )) CurrentPostProcess = Tint;
-	if (KeyHit( Key_3 )) CurrentPostProcess = GreyNoise;
-	if (KeyHit( Key_4 )) CurrentPostProcess = Burn;
+	if (KeyHit( Key_0 )) CurrentPostProcess = Copy;
+	if (KeyHit( Key_1 )) CurrentPostProcess = Tint2;
+	if (KeyHit( Key_2 )) motionBlurEnabled = !motionBlurEnabled;
+	if (KeyHit( Key_3 )) CurrentPostProcess = Water;
+	if (KeyHit( Key_4 )) CurrentPostProcess = Retro;
+
+	// others
 	if (KeyHit( Key_5 )) CurrentPostProcess = Distort;
 	if (KeyHit( Key_6 )) CurrentPostProcess = Spiral;
+	if (KeyHit( Key_7 )) CurrentPostProcess = Tint;
+	if (KeyHit( Key_8 )) CurrentPostProcess = GreyNoise;
+	if (KeyHit(Key_9)) CurrentPostProcess = Burn;
 
 	// Rotate cube and attach light to it
 	CEntity* cubey = EntityManager.GetEntity( "Cubey" );

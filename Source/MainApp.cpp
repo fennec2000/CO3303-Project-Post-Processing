@@ -4,15 +4,22 @@
 	Windows functions and DirectX setup
 ********************************************/
 
+
 #include <windows.h>
 #include <d3d10.h>
 #include <d3dx10.h>
+#define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
 
 #include "Defines.h"
 #include "Input.h"
 #include "CTimer.h"
 #include "CVector2.h"
 #include "PostProcess.h"
+
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx10.h"
 
 namespace gen
 {
@@ -131,6 +138,27 @@ bool D3DSetup( HWND hWnd )
 	return true;
 }
 
+// initialise imgui
+bool ImGuiSetup( HWND hWnd )
+{
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsClassic();
+
+	// Setup Platform/Renderer bindings
+	ImGui_ImplWin32_Init(hWnd);
+	ImGui_ImplDX10_Init(g_pd3dDevice);
+
+	return true;
+}
+
 
 
 // Reset the Direct3D device to resize window or toggle fullscreen/windowed
@@ -154,6 +182,13 @@ void D3DShutdown()
 	if (g_pd3dDevice)           g_pd3dDevice->Release();
 }
 
+// uninitialise imgui
+void ImGuiShutdown()
+{
+	ImGui_ImplDX10_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+}
 
 } // namespace gen
 
@@ -163,8 +198,12 @@ void D3DShutdown()
 //-----------------------------------------------------------------------------
 
 // Window message handler
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+		return true;
+
     switch( msg )
     {
         case WM_DESTROY:
@@ -252,7 +291,7 @@ INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR, INT )
                               NULL, NULL, wc.hInstance, NULL );
 
     // Initialize Direct3D, the scene and post-processing
-	if (gen::D3DSetup( hWnd ) && gen::SceneSetup() && gen::PostProcessSetup())
+	if (gen::D3DSetup( hWnd ) && gen::ImGuiSetup( hWnd) && gen::SceneSetup() && gen::PostProcessSetup())
     {
         // Show the window
         ShowWindow( hWnd, SW_SHOWDEFAULT );
@@ -295,6 +334,8 @@ INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR, INT )
 			}
         }
     }
+
+	gen::ImGuiShutdown();
     gen::PostProcessShutdown();
     gen::SceneShutdown();
 	gen::D3DShutdown();

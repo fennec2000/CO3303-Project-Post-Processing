@@ -31,12 +31,21 @@ SamplerState TrilinearWrap
 
 // Other variables used for individual post-processes
 float3 TintColour;
+float3 TintColour2;
 float2 NoiseScale;
 float2 NoiseOffset;
 float  DistortLevel;
 float  BurnLevel;
 float  Wiggle;
-float  PostAlpha = 0.4f;
+float  BlurLevel;
+
+// retro settings
+float Pixelation;
+float ColourPallet;
+
+// Viewport Dimensions
+float ViewportWidth;
+float ViewportHeight;
 
 
 //--------------------------------------------------------------------------------------
@@ -83,6 +92,26 @@ PS_POSTPROCESS_INPUT FullScreenQuad(VS_POSTPROCESS_INPUT vIn)
     return vOut;
 }
 
+PS_POSTPROCESS_INPUT FullScreenQuadWater(VS_POSTPROCESS_INPUT vIn)
+{
+	PS_POSTPROCESS_INPUT vOut;
+
+	float4 QuadPos[4] = { float4(-1.0, 1.0, 0.0, 1.0),
+						  float4(-1.0,-1.0, 0.0, 1.0),
+						  float4(1.0, 1.0, 0.0, 1.0),
+						  float4(1.0,-1.0, 0.0, 1.0) };
+	float2 QuadUV[4] = { float2(0.0, 0.0),
+						  float2(0.0, 1.0),
+						  float2(1.0, 0.0),
+						  float2(1.0, 1.0) };
+
+	vOut.ProjPos = QuadPos[vIn.vertexId];
+	vOut.UV = QuadUV[vIn.vertexId];
+
+	vOut.ProjPos.x += sin((Wiggle + vOut.ProjPos.y)) / 100;
+	return vOut;
+}
+
 
 //--------------------------------------------------------------------------------------
 // Post-processing Pixel Shaders
@@ -101,7 +130,19 @@ float4 PPTintShader( PS_POSTPROCESS_INPUT ppIn ) : SV_Target
 {
 	// Sample the texture colour (look at shader above) and multiply it with the tint colour (variables near top)
 	float3 ppColour = SceneTexture.Sample(PointSample, ppIn.UV); /*FILTER - not 0*/
-	return float4( ppColour * TintColour, PostAlpha);
+	return float4( ppColour * TintColour, BlurLevel);
+}
+
+// Post-processing shader that tints the scene texture to a scale of given colours
+float4 PPTint2Shader(PS_POSTPROCESS_INPUT ppIn) : SV_Target
+{
+	// Sample the texture colour (look at shader above) and multiply it with the tint colour (variables near top)
+	float3 ppColour = SceneTexture.Sample(PointSample, ppIn.UV); /*FILTER - not 0*/
+	float2 uv = ppIn.ProjPos.xy;
+	uv.x /= ViewportWidth;
+	uv.y /= ViewportHeight;
+	float3 tint = TintColour * (1 - uv.y) + TintColour2 * uv.y;
+	return float4(ppColour * tint, BlurLevel);
 }
 
 
@@ -121,7 +162,7 @@ float4 PPGreyNoiseShader( PS_POSTPROCESS_INPUT ppIn ) : SV_Target
     grey += NoiseStrength * (PostProcessMap.Sample( TrilinearWrap, noiseUV ).r - 0.5f); // Noise can increase or decrease grey value
     
     // Output final colour
-	return float4( grey, grey, grey, PostAlpha);
+	return float4( grey, grey, grey, BlurLevel);
 }
 
 
@@ -153,7 +194,7 @@ float4 PPBurnShader( PS_POSTPROCESS_INPUT ppIn ) : SV_Target
 	else if (burnTexture.r >= BurnLevelMax)
     {
 		float3 ppColour = SceneTexture.Sample(PointSample, ppIn.UV); /*FILTER, not 0, read the comment*/
-		return float4( ppColour, PostAlpha);
+		return float4( ppColour, BlurLevel);
 	}
 	
 	else // Draw burning edges
@@ -181,7 +222,7 @@ float4 PPBurnShader( PS_POSTPROCESS_INPUT ppIn ) : SV_Target
 			// Blend from burn tint in middle of burning area to bright glow at the burning edges
 			ppColour = lerp( BurnColour * texColour, GlowColour, GlowLevel - 1.0f );
 		}
-		return float4( ppColour, PostAlpha);
+		return float4( ppColour, BlurLevel);
 	}
 }
 
@@ -203,7 +244,7 @@ float4 PPDistortShader( PS_POSTPROCESS_INPUT ppIn ) : SV_Target
 	// Get final colour by adding fake light colour plus scene texture sampled with distort texture offset
 	float3 ppColour = light + SceneTexture.Sample( PointSample, ppIn.UV + DistortLevel * DistortVector );/*FILTER - not 0, read comment*/
 
-    return float4( ppColour, PostAlpha);
+    return float4( ppColour, BlurLevel);
 }
 
 
@@ -228,7 +269,24 @@ float4 PPSpiralShader( PS_POSTPROCESS_INPUT ppIn ) : SV_Target
 	// Sample texture at new position (centre UV + rotated UV offset)
     float3 ppColour = SceneTexture.Sample( PointSample, CentreUV + RotOffsetUV ); /*FILTER - not 0, read the comment*/
 
-    return float4( ppColour, PostAlpha);
+    return float4( ppColour, BlurLevel);
+}
+
+float4 PPRetroShader( PS_POSTPROCESS_INPUT ppIn ) : SV_Target
+{
+	// pixelation
+	// scale up floor pixels to lose detail and scale back
+	float2 UV = ppIn.UV;
+	UV.x = floor( UV.x * Pixelation ) / Pixelation;
+	UV.y = floor( UV.y * Pixelation ) / Pixelation;
+
+	float3 ppColour = SceneTexture.Sample(PointSample, UV); /*FILTER - not 0*/
+
+	// colour pallet
+	// round each part of rgba to reduce pallet
+	ppColour = round(ppColour * ColourPallet) / ColourPallet;
+
+	return float4( ppColour, BlurLevel );
 }
 
 
@@ -273,7 +331,7 @@ technique10 PPCopy
         SetGeometryShader( NULL );                                   
         SetPixelShader( CompileShader( ps_4_0, PPCopyShader() ) );
 
-		SetBlendState( NoBlending, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
+		SetBlendState(AlphaBlending, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		SetRasterizerState( CullNone ); 
 		SetDepthStencilState( DisableDepth, 0 );
      }
@@ -293,6 +351,21 @@ technique10 PPTint
 		SetRasterizerState( CullNone ); 
 		SetDepthStencilState( DisableDepth, 0 );
      }
+}
+
+// Tint the scene to a colour
+technique10 PPTint2
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, FullScreenQuad()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, PPTint2Shader()));
+
+		SetBlendState(AlphaBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullNone);
+		SetDepthStencilState(DisableDepth, 0);
+	}
 }
 
 // Turn the scene greyscale and add some animated noise
@@ -353,4 +426,34 @@ technique10 PPSpiral
 		SetRasterizerState( CullNone ); 
 		SetDepthStencilState( DisableDepth, 0 );
      }
+}
+
+// Fake underwater effect
+technique10 PPWater
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, FullScreenQuadWater()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, PPTintShader()));
+
+		SetBlendState(AlphaBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullNone);
+		SetDepthStencilState(DisableDepth, 0);
+	}
+}
+
+// Retro shader
+technique10 PPRetro
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, FullScreenQuad()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, PPRetroShader()));
+
+		SetBlendState(AlphaBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullNone);
+		SetDepthStencilState(DisableDepth, 0);
+	}
 }

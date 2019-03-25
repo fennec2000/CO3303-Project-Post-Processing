@@ -35,6 +35,9 @@ void PostProcessShutdown();
 // Draw one frame of the scene
 void RenderScene( float updateTime );
 
+// Render imgui windows
+void RenderImGui();
+
 // Render on-screen text each frame
 void RenderSceneText( float updateTime );
 

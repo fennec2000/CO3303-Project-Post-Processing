@@ -22,6 +22,9 @@
     <Filter Include="Data">
       <UniqueIdentifier>{eb518fac-295a-4537-8bed-b01da00d5ec9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ImGui">
+      <UniqueIdentifier>{09554d27-5ef2-44f4-a32b-c97976aeae3d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Scene\Camera.cpp">
@@ -107,6 +110,24 @@
     </ClCompile>
     <ClCompile Include="Source\MainApp.cpp" />
     <ClCompile Include="Source\PostProcess.cpp" />
+    <ClCompile Include="Source\ImGui\imgui.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ImGui\imgui_impl_win32.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ImGui\imgui_impl_dx10.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ImGui\imgui_draw.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ImGui\imgui_widgets.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ImGui\imgui_demo.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Scene\Camera.h">
@@ -206,6 +227,27 @@
       <Filter>Data</Filter>
     </ClInclude>
     <ClInclude Include="Source\PostProcess.h" />
+    <ClInclude Include="Source\ImGui\imgui.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ImGui\imgui_impl_win32.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ImGui\imgui_impl_dx10.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ImGui\imgui_internal.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ImGui\imstb_rectpack.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ImGui\imstb_textedit.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ImGui\imstb_truetype.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Entities.xml" />

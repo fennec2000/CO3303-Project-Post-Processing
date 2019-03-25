@@ -15,7 +15,7 @@
     <ProjectGuid>{3A68081D-E8F9-4523-9436-530DE9E5530C}</ProjectGuid>
     <RootNamespace>PostProcess</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -52,7 +52,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>%expat%\Source\lib;Source\imgui;Source\Common;Source\Data;Source\Math;Source\Scene;Source\Render;Source\UI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%expat%\Source\lib;Source\Common;Source\ImGui;Source\Data;Source\Math;Source\Scene;Source\Render;Source\UI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -85,7 +85,7 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Expat 2.1.0\Source\lib;Source\Common;Source\Data;Source\Math;Source\Scene;Source\Render;Source\UI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Expat 2.1.0\Source\lib;Source\ImGui;Source\Common;Source\Data;Source\Math;Source\Scene;Source\Render;Source\UI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -115,6 +115,12 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\ImGui\imgui.cpp" />
+    <ClCompile Include="Source\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="Source\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="Source\ImGui\imgui_impl_dx10.cpp" />
+    <ClCompile Include="Source\ImGui\imgui_impl_win32.cpp" />
+    <ClCompile Include="Source\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="Source\Scene\Camera.cpp" />
     <ClCompile Include="Source\Scene\Entity.cpp" />
     <ClCompile Include="Source\Scene\EntityManager.cpp" />
@@ -146,6 +152,13 @@
     <ClCompile Include="Source\PostProcess.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\ImGui\imgui.h" />
+    <ClInclude Include="Source\ImGui\imgui_impl_dx10.h" />
+    <ClInclude Include="Source\ImGui\imgui_impl_win32.h" />
+    <ClInclude Include="Source\ImGui\imgui_internal.h" />
+    <ClInclude Include="Source\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="Source\ImGui\imstb_textedit.h" />
+    <ClInclude Include="Source\ImGui\imstb_truetype.h" />
     <ClInclude Include="Source\Scene\Camera.h" />
     <ClInclude Include="Source\Scene\Entity.h" />
     <ClInclude Include="Source\Scene\EntityManager.h" />
