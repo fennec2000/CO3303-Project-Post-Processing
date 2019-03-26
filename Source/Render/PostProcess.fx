@@ -10,6 +10,7 @@
 
 // Texture maps
 Texture2D SceneTexture;   // Texture containing the scene to copy to the full screen quad
+Texture2D SceneTexture2;   // Texture containing the scene to copy to the full screen quad
 Texture2D PostProcessMap; // Second map for special purpose textures used during post-processing
 
 // Samplers to use with the above texture maps. Specifies texture filtering and addressing mode to use when accessing texture pixels
@@ -289,6 +290,25 @@ float4 PPRetroShader( PS_POSTPROCESS_INPUT ppIn ) : SV_Target
 	return float4( ppColour, BlurLevel );
 }
 
+float4 PPGrayscaleShader(PS_POSTPROCESS_INPUT ppIn) : SV_Target
+{
+	float3 ppColour = SceneTexture.Sample(PointSample, ppIn.UV); /*FILTER - not 0*/
+
+	// rec601 luma
+	float y = 0.299 * ppColour.r + 0.587 * ppColour.g + 0.114 * ppColour.b;
+
+	return float4(y, y, y, BlurLevel);
+}
+
+float4 PPInvertShader(PS_POSTPROCESS_INPUT ppIn) : SV_Target
+{
+	float3 ppColour = SceneTexture.Sample(PointSample, ppIn.UV); /*FILTER - not 0*/
+
+	ppColour = float3(1 - ppColour.r, 1 - ppColour.g, 1 - ppColour.b);
+
+	return float4(ppColour, BlurLevel);
+}
+
 
 //--------------------------------------------------------------------------------------
 // States
@@ -316,6 +336,7 @@ BlendState AlphaBlending
     DestBlend = INV_SRC_ALPHA;
     BlendOp = ADD;
 };
+
 
 
 //--------------------------------------------------------------------------------------
@@ -451,6 +472,36 @@ technique10 PPRetro
 		SetVertexShader(CompileShader(vs_4_0, FullScreenQuad()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, PPRetroShader()));
+
+		SetBlendState(AlphaBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullNone);
+		SetDepthStencilState(DisableDepth, 0);
+	}
+}
+
+// Grayscale
+technique10 PPGrayscale
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, FullScreenQuad()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, PPGrayscaleShader()));
+
+		SetBlendState(AlphaBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
+		SetRasterizerState(CullNone);
+		SetDepthStencilState(DisableDepth, 0);
+	}
+}
+
+// Colour invert
+technique10 PPInvert
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_4_0, FullScreenQuad()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_4_0, PPInvertShader()));
 
 		SetBlendState(AlphaBlending, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF);
 		SetRasterizerState(CullNone);
