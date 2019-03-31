@@ -69,7 +69,7 @@ Material PixelLit_Grating {
 	2.000000;2.000000;2.000000;;
 	0.000000;0.000000;0.000000;;
 	TextureFilename {
-		"Grating3.png";
+		"Grating3.dds";
 	}
 }
 

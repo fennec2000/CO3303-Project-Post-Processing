@@ -217,12 +217,13 @@ void CEntityManager::UpdateAllEntities( float updateTime )
 }
 
 // Render all entities from the given camera
-void CEntityManager::RenderAllEntities( CCamera* camera )
+// May request to render either normal or post-processed materials in the entities (defaults to normal)
+void CEntityManager::RenderAllEntities( CCamera* camera, bool postProcess /*= false*/ )
 {
 	TEntityIter entity = m_Entities.begin();
 	while (entity != m_Entities.end())
 	{
-		(*entity)->Render( camera );
+		(*entity)->Render( camera, postProcess );
 		++entity;
 	}
 }

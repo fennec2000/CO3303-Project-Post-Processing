@@ -11,9 +11,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectName>PostProcess</ProjectName>
+    <ProjectName>PostProcessPoly</ProjectName>
     <ProjectGuid>{3A68081D-E8F9-4523-9436-530DE9E5530C}</ProjectGuid>
-    <RootNamespace>PostProcess</RootNamespace>
+    <RootNamespace>PostProcessPoly</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -52,7 +52,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>%expat%\Source\lib;Source\Common;Source\ImGui;Source\Data;Source\Math;Source\Scene;Source\Render;Source\UI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%expat%\Source\lib;Source\ImGui;Source\Common;Source\Data;Source\Math;Source\Scene;Source\Render;Source\UI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -68,7 +68,7 @@
       <AdditionalDependencies>libexpat.lib;d3d10.lib;d3dx10d.lib;d3dx9d.lib;d3dxof.lib;dxguid.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%expat%\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>$(OutDir)PostProcess.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>$(OutDir)PostProcessPoly.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
@@ -85,7 +85,7 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Expat 2.1.0\Source\lib;Source\ImGui;Source\Common;Source\Data;Source\Math;Source\Scene;Source\Render;Source\UI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Expat 2.1.0\Source\lib;Source\Common;Source\Data;Source\Math;Source\Scene;Source\Render;Source\UI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -149,9 +149,10 @@
     <ClCompile Include="Source\Data\CParseLevel.cpp" />
     <ClCompile Include="Source\Data\CParseXML.cpp" />
     <ClCompile Include="Source\MainApp.cpp" />
-    <ClCompile Include="Source\PostProcess.cpp" />
+    <ClCompile Include="Source\PostProcessPoly.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\ImGui\imconfig.h" />
     <ClInclude Include="Source\ImGui\imgui.h" />
     <ClInclude Include="Source\ImGui\imgui_impl_dx10.h" />
     <ClInclude Include="Source\ImGui\imgui_impl_win32.h" />
@@ -159,6 +160,7 @@
     <ClInclude Include="Source\ImGui\imstb_rectpack.h" />
     <ClInclude Include="Source\ImGui\imstb_textedit.h" />
     <ClInclude Include="Source\ImGui\imstb_truetype.h" />
+    <ClInclude Include="Source\Render\HSL.h" />
     <ClInclude Include="Source\Scene\Camera.h" />
     <ClInclude Include="Source\Scene\Entity.h" />
     <ClInclude Include="Source\Scene\EntityManager.h" />
@@ -191,12 +193,15 @@
     <ClInclude Include="Source\Math\MathIO.h" />
     <ClInclude Include="Source\Data\CParseLevel.h" />
     <ClInclude Include="Source\Data\CParseXML.h" />
-    <ClInclude Include="Source\PostProcess.h" />
+    <ClInclude Include="Source\PostProcessPoly.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Source\Render\PostProcess.fx" />
     <None Include="Entities.xml" />
     <None Include="Source\Render\Scene.fx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Source\ImGui\LICENSE.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

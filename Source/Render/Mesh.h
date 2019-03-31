@@ -115,7 +115,7 @@ public:
 	// Rendering
 
 	// Render the model from the given camera using the given matrix list as a hierarchy (must be one matrix per node)
-	void Render( CMatrix4x4* matrices, CCamera* camera  );
+	void Render( CMatrix4x4* matrices, CCamera* camera, bool postProcess = false );
 
 
 /*-----------------------------------------------------------------------------------------

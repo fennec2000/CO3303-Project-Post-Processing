@@ -213,7 +213,8 @@ public:
 	void UpdateAllEntities( float updateTime );
 
 	// Render all entities from point of view of given camera - not the ideal method, OK for this example
-	void RenderAllEntities( CCamera* camera );
+	// May request to render either normal or post-processed materials in the entities (defaults to normal)
+	void RenderAllEntities( CCamera* camera, bool postProcess = false );
 
 		
 /////////////////////////////////////

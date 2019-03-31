@@ -158,9 +158,9 @@ bool CMesh::GetTriangle( CVector3* pVertex1, CVector3* pVertex2, CVector3* pVert
 	pVertexData = m_SubMeshes[m_EnumTriMesh].vertices +
 	              face.aiVertex[2] * m_SubMeshes[m_EnumTriMesh].vertexSize;
 	pVertexCoord = reinterpret_cast<TFloat32*>(pVertexData);
-	pVertex2->x = *pVertexCoord++;
-	pVertex2->y = *pVertexCoord++;
-	pVertex2->z = *pVertexCoord;
+	pVertex3->x = *pVertexCoord++;
+	pVertex3->y = *pVertexCoord++;
+	pVertex3->z = *pVertexCoord;
 
 	return true;
 }
@@ -595,17 +595,11 @@ bool CMesh::PreProcess()
 //-----------------------------------------------------------------------------
 
 // Render the model from the given camera using the given matrix list as a hierarchy (must be one matrix per node)
-void CMesh::Render(	CMatrix4x4* matrices, CCamera* camera  )
+void CMesh::Render(	CMatrix4x4* matrices, CCamera* camera, bool postProcess /*= false*/ )
 {
 	if (!m_HasGeometry) return;
 
-	// Test if mesh is visible - test the mesh's bounding sphere against the camera frustum, which
-	// will work even with mesh rotation (unlike an AABB). We also need to scale the bounding sphere
-	// if the mesh itself is scaled. A better system would combine a partitioning scheme for
-	// initial culling, box tests for static geometry and sphere tests for moving entities. Animated
-	// meshes would need more complex tests, since the child parts might go outside of the parent's
-	// bounding sphere. Although it is possible to store a bounding sphere for the known maximum
-	// extent of child parts
+	// Test if mesh is visible - test the mesh's bounding sphere against the camera frustum
 	CVector3 scale = matrices[0].GetScale();
 	TFloat32 scaledRadius = m_BoundingRadius * Max(scale.x, Max(scale.y, scale.z) ); // Scale bounding sphere by largest dimension of mesh scale
 	if (!camera->SphereInFrustum( matrices->Position(), scaledRadius ))
@@ -620,26 +614,34 @@ void CMesh::Render(	CMatrix4x4* matrices, CCamera* camera  )
 		SSubMeshDX& subMeshDX = m_SubMeshesDX[subMesh];
 		SMeshMaterialDX& material = m_Materials[subMeshDX.material];
 
-		// Set up render method passing material colours & textures and the sub-mesh's world matrix, also get back the fx file technique to use
-		SetRenderMethod( material.renderMethod, &material.diffuseColour, &material.specularColour, material.specularPower, material.textures, &matrices[subMeshDX.node] );
-		ID3D10EffectTechnique* technique = GetRenderMethodTechnique( material.renderMethod );
-
-		// Select vertex and index buffer for sub-mesh - assuming all geometry data is triangle lists
-		UINT offset = 0;
-		g_pd3dDevice->IASetVertexBuffers( 0, 1, &subMeshDX.vertexBuffer, &subMeshDX.vertexSize, &offset );
-		g_pd3dDevice->IASetInputLayout(subMeshDX.vertexLayout );
-		g_pd3dDevice->IASetIndexBuffer(subMeshDX.indexBuffer, DXGI_FORMAT_R16_UINT, 0 );
-		g_pd3dDevice->IASetPrimitiveTopology( D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
-
-		// Render the sub-mesh. Geometry buffers and shader variables, just select the technique for this method and draw.
-		D3D10_TECHNIQUE_DESC techDesc;
-		technique->GetDesc( &techDesc );
-		for( UINT p = 0; p < techDesc.Passes; ++p )
+		//****|PPPPOLY|********************************************************************************
+		// In the model rendering code, we can now request to render either normal or post-processed 
+		// materials. Post processed materials are rendered in a 2nd pass after all the normal materials
+		//
+		// Check that material type (normal or post-processed) matches request passed as parameter before rendering
+		if (RenderMethodIsPostProcess( material.renderMethod ) == postProcess)
 		{
-			technique->GetPassByIndex( p )->Apply( 0 );
+			// Set up render method passing material colours & textures and the sub-mesh's world matrix, also get back the fx file technique to use
+			SetRenderMethod( material.renderMethod, &material.diffuseColour, &material.specularColour, material.specularPower, material.textures, &matrices[subMeshDX.node] );
+			ID3D10EffectTechnique* technique = GetRenderMethodTechnique( material.renderMethod );
+
+			// Select vertex and index buffer for sub-mesh - assuming all geometry data is triangle lists
+			UINT offset = 0;
+			g_pd3dDevice->IASetVertexBuffers( 0, 1, &subMeshDX.vertexBuffer, &subMeshDX.vertexSize, &offset );
+			g_pd3dDevice->IASetInputLayout(subMeshDX.vertexLayout );
+			g_pd3dDevice->IASetIndexBuffer(subMeshDX.indexBuffer, DXGI_FORMAT_R16_UINT, 0 );
+			g_pd3dDevice->IASetPrimitiveTopology( D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+
+			// Render the sub-mesh. Geometry buffers and shader variables, just select the technique for this method and draw.
+			D3D10_TECHNIQUE_DESC techDesc;
+			technique->GetDesc( &techDesc );
+			for( UINT p = 0; p < techDesc.Passes; ++p )
+			{
+				technique->GetPassByIndex( p )->Apply( 0 );
+				g_pd3dDevice->DrawIndexed( subMeshDX.numIndices, 0, 0 );
+			}
 			g_pd3dDevice->DrawIndexed( subMeshDX.numIndices, 0, 0 );
 		}
-		g_pd3dDevice->DrawIndexed( subMeshDX.numIndices, 0, 0 );
 	}
 }
 

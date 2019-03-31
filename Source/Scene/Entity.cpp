@@ -48,7 +48,8 @@ CEntity::CEntity
 
 
 // Render the model from the given camera
-void CEntity::Render( CCamera* camera )
+// May request to render either normal or post-processed materials in the entity (defaults to normal)
+void CEntity::Render( CCamera* camera, bool postProcess /*= false*/ )
 {
 	// Get pointer to mesh to simplify code
 	CMesh* Mesh = m_Template->Mesh();
@@ -64,7 +65,7 @@ void CEntity::Render( CCamera* camera )
 	// Don't need this step for this exercise
 
 	// Render with absolute matrices
-	Mesh->Render( m_Matrices, camera );
+	Mesh->Render( m_Matrices, camera, postProcess );
 }
 
 

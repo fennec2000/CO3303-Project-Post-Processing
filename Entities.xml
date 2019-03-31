@@ -24,6 +24,13 @@
     <!-- Other Types -->
     <EntityTemplate Type="Object" Name="ParaCube" Mesh="Cube.x"/>
     <EntityTemplate Type="Object" Name="BigShip" Mesh="Interstellar.x"/>
+    <EntityTemplate Type="Object" Name="Block" Mesh="Block.x"/>
+    <EntityTemplate Type="Object" Name="Wall" Mesh="Wall1.x"/>
+    <EntityTemplate Type="Object" Name="WallShapes" Mesh="Wall2.x"/>
+    <EntityTemplate Type="Object" Name="Block1" Mesh="Block1.x"/>
+    <EntityTemplate Type="Object" Name="Block2" Mesh="Block2.x"/>
+    <EntityTemplate Type="Object" Name="Block3" Mesh="Block3.x"/>
+    <EntityTemplate Type="Object" Name="Block4" Mesh="Block4.x"/>
 
   </Templates>
   <!-- End of Entity Types -->
@@ -58,6 +65,39 @@
         <Randomise X="2000.0" Y="0.0" Z="2000.0"/>
       </Position>
       <Scale X="40.0" Y="40.0" Z="40.0"/>
+    </Entity>
+    <Entity Type="Block" Name="PostProcessBlock">
+      <Position X="0.0" Y="25.0" Z="-80.0"/>
+    </Entity>
+    
+    <Entity Type="Wall" Name="PostProcessWall">
+      <Position X="0.0" Y="0.0" Z="-80.0"/>
+      <Scale X="20.0" Y="20.0" Z="20.0"/>
+    </Entity>
+    <Entity Type="Block" Name="PPWallBlock">
+      <Position X="0.0" Y="5.0" Z="-80.0"/>
+      <Scale X="0.5" Y="0.5" Z="0.5"/>
+    </Entity>
+    
+    <Entity Type="WallShapes" Name="PostProcessWall2">
+      <Position X="30.0" Y="0.0" Z="-80.0"/>
+      <Scale X="20.0" Y="20.0" Z="20.0"/>
+    </Entity>
+    <Entity Type="Block1" Name="PPWallBlock">
+      <Position X="21.0" Y="5.0" Z="-80.0"/>
+      <Scale X="0.5" Y="0.5" Z="0.45"/>
+    </Entity>
+    <Entity Type="Block2" Name="PPWallBlock">
+      <Position X="27.0" Y="5.0" Z="-80.0"/>
+      <Scale X="0.5" Y="0.5" Z="0.45"/>
+    </Entity>
+    <Entity Type="Block3" Name="PPWallBlock">
+      <Position X="33.0" Y="5.0" Z="-80.0"/>
+      <Scale X="0.5" Y="0.5" Z="0.45"/>
+    </Entity>
+    <Entity Type="Block4" Name="PPWallBlock">
+      <Position X="39.0" Y="5.0" Z="-80.0"/>
+      <Scale X="0.5" Y="0.5" Z="0.45"/>
     </Entity>
 
     <!-- Scenery Positions -->

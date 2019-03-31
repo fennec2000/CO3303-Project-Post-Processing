@@ -24,6 +24,8 @@ extern const string MediaFolder;
 extern const string ShaderFolder;
 
 
+float updateTime;
+
 //--------------------------------------------------------------------------------------
 // Shader Variables
 //--------------------------------------------------------------------------------------
@@ -31,6 +33,9 @@ extern const string ShaderFolder;
 
 // Effects / techniques
 ID3D10Effect* Effect = NULL;
+
+// Additional textures used by post-processes
+extern ID3D10ShaderResourceView* NoiseMap;
 
 // Matrices / camera
 ID3D10EffectMatrixVariable* WorldMatrixVar = NULL;
@@ -56,10 +61,22 @@ ID3D10EffectShaderResourceVariable* DiffuseMapVar = NULL;
 ID3D10EffectShaderResourceVariable* DiffuseMap2Var = NULL; // Second diffuse map for special techniques
 ID3D10EffectShaderResourceVariable* NormalMapVar = NULL;
 
+// Scene texture used for post-processing materials (passed over from the main post process code via the SetSceneTexture function)
+ID3D10EffectShaderResourceVariable* SceneTexturePolyVar = NULL;
+ID3D10EffectShaderResourceVariable* PolyPostProcessMapVar = NULL; // Single shader variable used for the three maps above (noise, burn, distort). Only one is needed at a time
+ID3D10EffectScalarVariable* ViewportWidthVar = NULL; // Dimensions of the viewport needed to help access the scene texture (see poly post-processing shaders)
+ID3D10EffectScalarVariable* ViewportHeightVar = NULL;
+
 // Other
 ID3D10EffectScalarVariable* ParallaxDepthVar = NULL;
 
-	
+// retro settings
+ID3D10EffectScalarVariable* PolyPixelationVar = NULL;
+ID3D10EffectScalarVariable* PolyColourPalletVar = NULL;
+
+// noise
+ID3D10EffectVectorVariable* PolyNoiseScaleVar = NULL;
+ID3D10EffectVectorVariable* PolyNoiseOffsetVar = NULL;
 
 //-----------------------------------------------------------------------------
 // Render Method Specifications
@@ -78,21 +95,26 @@ void RM_ParallaxMapping( D3DXCOLOR* diffuseColour, D3DXCOLOR* specularColour, fl
 
 
 
-//****| INFO |************************************************************************************/
-// The available render methods are in ERenderMethod in RenderMethod.h. This array defines the
-// exact operation of each render method in turn. Each method has a technique and a function to
-// initialise the shaders in that technique for rendering. Also specify number of textures needed
-// (e.g. diffuse map, normal map) and a boolean indicating if the render method contains tangents
-//************************************************************************************************/
+// The available render methods are in ERenderMethod in RenderMethod.h. This array defines the exact operation of each render method in turn.
+// Each method has a technique and a function to initialise the shaders in that technique for rendering. Also specify number of textures needed
+// (e.g. diffuse map, normal map), and booleans indicating if the render method contains tangents or is used as a post-process
+//
+//**|PPPOLY|*** One new render method at the end for a post-processed material (PPTint), it is handled almost exactly like other materials except with 
+// the Post-Process bool set true, which indicates this material will be rendered in a second pass - see the PostProcessPoly.cpp code
 SRenderMethod RenderMethods[NumRenderMethods] =
 {
-//	|Technique name|  |Method init fn|         |Num Tex|  |Tangents|  |for internal use|   |Method Name|
-	"PlainColour",     RM_TransformColour,      0,         false,      0,                // PlainColour   
-	"TexColour",       RM_TransformTexColour,   1,         false,      0,                // PlainTexture  
-	"PixelLit",        RM_TransformMaterial,    0,         false,      0,                // PixelLit      
-	"PixelLitTex",     RM_TransformTexMaterial, 1,         false,      0,                // PixelLitTex   
-	"NormalMapping",   RM_NormalMapping,        2,         true,       0,                // NormalMap       
-	"ParallaxMapping", RM_ParallaxMapping,      2,         true,       0,                // ParallaxMap       
+//	|Technique name|  |Method init fn|         |Num Tex|  |Tangents|  |Post-Process|  |for internal use|   |Method Name|
+	"PlainColour",     RM_TransformColour,      0,         false,      false,          0,                // PlainColour   
+	"TexColour",       RM_TransformTexColour,   1,         false,      false,          0,                // PlainTexture  
+	"PixelLit",        RM_TransformMaterial,    0,         false,      false,          0,                // PixelLit      
+	"PixelLitTex",     RM_TransformTexMaterial, 1,         false,      false,          0,                // PixelLitTex   
+	"NormalMapping",   RM_NormalMapping,        2,         true,       false,          0,                // NormalMap     
+	"ParallaxMapping", RM_ParallaxMapping,      2,         true,       false,          0,                // ParallaxMap   
+	"PPTintPoly",      RM_TransformColour,      0,         false,      true,           0,                // PPTint        
+	"PPCutGlassPoly",  RM_ParallaxMapping,      2,         true,       true,           0,                // CutGlass      
+	"PPRetroPoly",     RM_TransformColour,      0,         false,      true,           0,                // Retro      
+	"PPInvertPoly",    RM_TransformColour,      0,         false,      true,           0,                // Invert colours      
+	"PPGrayNoisePoly", RM_TransformColour,      0,         false,      true,           0,                // Gray noise      
 };
 
 
@@ -128,6 +150,26 @@ ERenderMethod RenderMethodFromMaterial
 		{
 			return ParallaxMap;
 		}
+		else if (materialName.find("Tint") == 0)
+		{
+			return PPTint;
+		}
+		else if (materialName.find("CutGlass") == 0)
+		{
+			return PPCutGlass;
+		}
+		else if (materialName.find("Retro") == 0)
+		{
+			return PPRetro;
+		}
+		else if (materialName.find("Invert") == 0)
+		{
+			return PPInvert;
+		}
+		else if (materialName.find("GreyNoise") == 0)
+		{
+			return PPGreyNoise;
+		}
 		else
 		{
 			return PixelLitTex;
@@ -154,6 +196,12 @@ unsigned int NumTexturesUsedByRenderMethod( ERenderMethod method )
 bool RenderMethodUsesTangents( ERenderMethod method )
 {
 	return RenderMethods[method].usesTangents;
+}
+
+// Return whether given render method should be used as a post process
+bool RenderMethodIsPostProcess( ERenderMethod method )
+{
+	return RenderMethods[method].isPostProcess;
 }
 
 // Return the .fx file technique used by given render method
@@ -210,12 +258,26 @@ bool InitialiseMethods()
 	SpecularPowerVar  = Effect->GetVariableByName( "SpecularPower" )->AsScalar();
 
 	// Access texture shader variables (not referred to as textures - any GPU memory accessed in a shader is a "Shader Resource")
-	DiffuseMapVar  = Effect->GetVariableByName( "DiffuseMap" )->AsShaderResource();
-	DiffuseMap2Var = Effect->GetVariableByName( "DiffuseMap2" )->AsShaderResource();
-	NormalMapVar   = Effect->GetVariableByName( "NormalMap"  )->AsShaderResource();
+	DiffuseMapVar       = Effect->GetVariableByName( "DiffuseMap" )->AsShaderResource();
+	DiffuseMap2Var      = Effect->GetVariableByName( "DiffuseMap2" )->AsShaderResource();
+	NormalMapVar        = Effect->GetVariableByName( "NormalMap"  )->AsShaderResource();
+
+	// Polygon post-processing variables
+	SceneTexturePolyVar   = Effect->GetVariableByName( "SceneTexture" )->AsShaderResource();
+	PolyPostProcessMapVar = Effect->GetVariableByName( "PostProcessMap" )->AsShaderResource();
+	ViewportWidthVar      = Effect->GetVariableByName( "ViewportWidth" )->AsScalar();
+	ViewportHeightVar     = Effect->GetVariableByName( "ViewportHeight" )->AsScalar();
 
 	// Access to other shader variables
 	ParallaxDepthVar = Effect->GetVariableByName( "ParallaxDepth" )->AsScalar();
+
+	// Retro variables
+	PolyPixelationVar   = Effect->GetVariableByName("Pixelation")->AsScalar();
+	PolyColourPalletVar = Effect->GetVariableByName("ColourPallet")->AsScalar();
+
+	// noise
+	PolyNoiseScaleVar  = Effect->GetVariableByName("NoiseScale")->AsVector();
+	PolyNoiseOffsetVar = Effect->GetVariableByName("NoiseOffset")->AsVector();
 
 	return true;
 }
@@ -273,6 +335,32 @@ void SetCamera( CCamera* camera )
 	ViewMatrixVar->SetMatrix( &viewMatrix.e00 );
 	ProjMatrixVar->SetMatrix( &projMatrix.e00 );
 	CameraPosVar->SetRawValue( &camera->Position(), 0, 12 );
+}
+
+// Set the scene texture / viewport dimensions used for post-processing material shaders - called from post-processing code
+void SetSceneTexture( ID3D10ShaderResourceView* sceneShaderResource, int ViewportWidth, int ViewportHeight )
+{
+	SceneTexturePolyVar->SetResource( sceneShaderResource );
+	ViewportWidthVar->SetFloat( static_cast<float>(ViewportWidth) );
+	ViewportHeightVar->SetFloat( static_cast<float>(ViewportHeight) );
+
+	// Set noise texture
+	PolyPostProcessMapVar->SetResource(NoiseMap);
+
+	// update
+	PolyPixelationVar->SetFloat(128.0f);
+	PolyColourPalletVar->SetFloat(4.0f);
+
+	const float GrainSize = 140; // Fineness of the noise grain
+	CVector2 NoiseScale = CVector2(ViewportWidth / GrainSize, ViewportHeight / GrainSize);
+	PolyNoiseScaleVar->SetRawValue(&NoiseScale, 0, 8);
+
+	// The offset is randomised to give a constantly changing noise effect (like tv static)
+	CVector2 RandomUVs = CVector2(Random(-1, 1), Random(-1, 1)) * updateTime;/*FILTER - 2 random UVs please*/
+	PolyNoiseOffsetVar->SetRawValue(&RandomUVs, 0, 8);
+
+	// Set noise texture
+	PolyPostProcessMapVar->SetResource(NoiseMap);
 }
 
 
@@ -343,6 +431,8 @@ void RM_ParallaxMapping( D3DXCOLOR* diffuseColour, D3DXCOLOR* specularColour, fl
     NormalMapVar->SetResource( textures[1] );
 	ParallaxDepthVar->SetFloat( 0.1f );
 }
+
+void UpdateTimeVar(float fr) { updateTime = fr; }
 
 
 } // namespace gen

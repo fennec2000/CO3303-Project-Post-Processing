@@ -4,18 +4,15 @@
 	Windows functions and DirectX setup
 ********************************************/
 
-
 #include <windows.h>
 #include <d3d10.h>
 #include <d3dx10.h>
-#define DIRECTINPUT_VERSION 0x0800
-#include <dinput.h>
 
 #include "Defines.h"
 #include "Input.h"
 #include "CTimer.h"
 #include "CVector2.h"
-#include "PostProcess.h"
+#include "PostProcessPoly.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -99,7 +96,7 @@ bool D3DSetup( HWND hWnd )
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
-	sd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL; // Discard last frame's back buffer after it is shown, alternative is DXGI_SWAP_EFFECT_SEQUENTIAL, which retains the back buffer
+	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD; // Discard last frame's back buffer after it is shown, alternative is DXGI_SWAP_EFFECT_SEQUENTIAL, which retains the back buffer
 	sd.OutputWindow = hWnd;                   // Target window
 	sd.Windowed = TRUE;                       // Whether to render in a window (TRUE) or go fullscreen (FALSE)
 	if (FAILED( D3D10CreateDeviceAndSwapChain( NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, D3D10_CREATE_DEVICE_DEBUG, D3D10_SDK_VERSION, &sd, &SwapChain, &g_pd3dDevice ) )) return false;
@@ -160,7 +157,6 @@ bool ImGuiSetup( HWND hWnd )
 }
 
 
-
 // Reset the Direct3D device to resize window or toggle fullscreen/windowed
 bool ResetDevice( HWND hWnd, bool ToggleFullscreen = false )
 {
@@ -189,6 +185,7 @@ void ImGuiShutdown()
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 }
+
 
 } // namespace gen
 
@@ -282,16 +279,16 @@ INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR, INT )
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, MsgProc, 0L, 0L,
                       GetModuleHandle(NULL), LoadIcon( NULL, IDI_APPLICATION ),
 					  LoadCursor( NULL, IDC_ARROW ), NULL, NULL,
-                      "PostProcess", NULL };
+                      "PostProcessPoly", NULL };
     RegisterClassEx( &wc );
 
     // Create the application's window
-	HWND hWnd = CreateWindow( "PostProcess", "CO3303: Full Screen Post Processing",
+	HWND hWnd = CreateWindow( "PostProcessPoly", "CO3303: Polygon Post Processing",
                               WS_OVERLAPPEDWINDOW, 100, 100, 1280, 960,
                               NULL, NULL, wc.hInstance, NULL );
 
     // Initialize Direct3D, the scene and post-processing
-	if (gen::D3DSetup( hWnd ) && gen::ImGuiSetup( hWnd) && gen::SceneSetup() && gen::PostProcessSetup())
+	if (gen::D3DSetup( hWnd ) && gen::ImGuiSetup(hWnd) && gen::SceneSetup() && gen::PostProcessSetup())
     {
         // Show the window
         ShowWindow( hWnd, SW_SHOWDEFAULT );
@@ -313,8 +310,8 @@ INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR, INT )
             else
 			{
 				// Render and update the scene - using variable timing
+                gen::RenderScene();
 				float updateTime = gen::Timer.GetLapTime();
-                gen::RenderScene( updateTime );
 				gen::UpdateScene( updateTime );
 
 				// Toggle fullscreen / windowed
@@ -340,6 +337,6 @@ INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR, INT )
     gen::SceneShutdown();
 	gen::D3DShutdown();
 
-	UnregisterClass( "PostProcess", wc.hInstance );
+	UnregisterClass( "PostProcessPoly", wc.hInstance );
     return 0;
 }

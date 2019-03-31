@@ -35,6 +35,11 @@ enum ERenderMethod
 	PixelLitTex        = 3,
 	NormalMap          = 4,
 	ParallaxMap        = 5,
+	PPTint             = 6, // A post-processed material
+	PPCutGlass         = 7, // A post-processed material
+	PPRetro            = 8,
+	PPInvert           = 9,
+	PPGreyNoise        = 10,
 	NumRenderMethods  // Leave this entry at end
 };
 
@@ -52,6 +57,8 @@ struct SRenderMethod
 	
 	unsigned int           numTextures;   // How many textures used by the methods (diffuse map, normal map etc.)
 	bool                   usesTangents;  // Whether vertex tangents should be calculated for meshes using this method
+
+	bool                   isPostProcess; //**** Whether this render method is a post-process or not. Post process methods are rendered in a second pass (see main code)
 
 	ID3D10EffectTechnique* technique;     // Pointer to actual technique
 };
@@ -79,6 +86,9 @@ unsigned int NumTexturesUsedByRenderMethod( ERenderMethod method );
 
 // Return whether given render method uses tangents
 bool RenderMethodUsesTangents( ERenderMethod method );
+
+// Return whether given render method should be used as a post process
+bool RenderMethodIsPostProcess( ERenderMethod method );
 
 // Return the .fx file technique used by given render method
 ID3D10EffectTechnique* GetRenderMethodTechnique( ERenderMethod method );
@@ -115,5 +125,8 @@ void SetLights( CLight** lights );
 // Set the camera to use for all methods
 void SetCamera( CCamera* camera );
 
+// Set the scene texture / viewport dimensions used for post-processing material shaders - called from post-processing code
+void SetSceneTexture( ID3D10ShaderResourceView* sceneShaderResource, int ViewportWidth, int ViewportHeight );
 
+void UpdateTimeVar(float fr);
 } // namespace gen

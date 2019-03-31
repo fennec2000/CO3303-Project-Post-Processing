@@ -33,13 +33,16 @@ void PostProcessShutdown();
 // Game loop functions
 
 // Draw one frame of the scene
-void RenderScene( float updateTime );
+void RenderScene();
+
+// full screen post process
+void FullScreenPostProcess();
 
 // Render imgui windows
 void RenderImGui();
 
 // Render on-screen text each frame
-void RenderSceneText( float updateTime );
+void RenderSceneText();
 
 // Update the scene between rendering
 void UpdateScene( float updateTime );

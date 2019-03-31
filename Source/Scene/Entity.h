@@ -191,7 +191,8 @@ public:
 	virtual bool Update( TFloat32 updateTime ) { return true; }
 	
 	// Render the entity from the given camera
-	void Render( CCamera* camera );
+	// May request to render either normal or post-processed materials in the entity (defaults to normal)
+	void Render( CCamera* camera, bool postProcess = false );
 
 
 /////////////////////////////////////
